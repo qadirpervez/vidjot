@@ -9,7 +9,11 @@ const IdeaSchema = new Schema({
   },
   details: {
     type: String,
-    required: false
+    required: true
+  },
+  slug: {
+    type: String,
+    required: true
   },
   date: {
     type: Date,

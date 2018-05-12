@@ -1,71 +1,60 @@
 const express = require('express');
 const exphbs = require('express-handlebars');
+const flash = require('connect-flash');
+const session = require('express-session');
 const mongoose = require('mongoose');
-const bodyParser = require('body-parser')
+const bodyParser = require('body-parser');
+const methodOverride = require('method-override');
 const port = 3000;
 
 const app = express();
 //Connect to mongoose
-mongoose.connect('mongodb://localhost/vidjot').then(() => {
+mongoose.connect('mongodb://localhost/vidjot')
+.then(() => {
   console.log('MongoDB Connected');
 }).catch(err => console.log(err));
 
-// Load Idea model
-require('./models/Idea');
-const Idea = mongoose.model('ideas');
 //body parser middleware
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-
+// Method override middleware.
+// override with POST having ?_method=DELETE
+app.use(methodOverride('_method'));
+// Express session
+app.use(session({
+  secret: 'secret',
+  resave: true,
+  saveUninitialized: true
+}));
+// flash middleware
+app.use(flash());
 //handlebars middleware.
 app.engine('handlebars', exphbs({defaultLayout: 'main'}));
 app.set('view engine', 'handlebars');
+
+// Global Variables
+app.use((req, res, next) => {
+  res.locals.success_msg = req.flash('success_msg');
+  res.locals.error_msg = req.flash('error_msg');
+  res.locals.error = req.flash('error');
+  next();
+});
 
 // routes
 app.get('/', (req, res) => {
   title = "Welcome";
   res.render('index', { title: title });
 });
-app.get('/ideas', (req, res) => {
-  Idea.find({}).sort({date: 'desc'}).then(ideas => {
-    res.render('ideas/index', {
-      ideas: ideas
-    });
-  });
-});
+
 app.get('/about', (req, res) => {
   res.render('about');
 });
-app.get('/ideas/add', (req, res) => {
-  res.render('ideas/add');
-});
-app.post('/ideas', (req, res) => {
-  let errors = [];
 
-  if(!req.body.title){
-    errors.push({ text: "Please add a title" });
-  }
-  if(!req.body.details){
-    errors.push({ text: "Please add some details"});
-  }
-  if(errors.length > 0){
-    res.render('ideas/add', {
-      errors: errors,
-      title: req.body.title,
-      details: req.body.details
-    });
-  } else {
-    const newUser = {
-      title: req.body.title,
-      details: req.body.details
-    };
+// Load Ideas routes
+const ideaRoutes = require('./routes/idea');
 
-    new Idea(newUser).save().then(idea => {
-      res.redirect('/ideas');
-    });
-  }
-});
-
+//Configure Idea Routes
+app.use('/ideas', ideaRoutes);
 
 
 //server starting
